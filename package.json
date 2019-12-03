@@ -1,0 +1,45 @@
+{
+    "name": "rutracker-sucker",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "jest",
+        "type-check": "tsc --noEmit",
+        "type-check:watch": "npm run type-check -- --watch",
+        "build": "npm run build:types && npm run build:js",
+        "build:types": "tsc --emitDeclarationOnly",
+        "build:js": "babel src --out-dir lib --extensions \".ts,.tsx\" --source-maps inline",
+        "example": "npm run build && node ./lib/example.js"
+    },
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@babel/cli": "^7.7.4",
+        "@babel/core": "^7.7.4",
+        "@babel/plugin-proposal-class-properties": "^7.7.4",
+        "@babel/plugin-proposal-numeric-separator": "^7.7.4",
+        "@babel/plugin-proposal-object-rest-spread": "^7.7.4",
+        "@babel/plugin-transform-runtime": "^7.7.4",
+        "@babel/preset-env": "^7.7.4",
+        "@babel/preset-typescript": "^7.7.4",
+        "typescript": "^3.7.2"
+    },
+    "dependencies": {
+        "@babel/runtime": "^7.7.4",
+        "@types/cheerio": "^0.22.14",
+        "@types/jest": "^24.0.23",
+        "@types/lodash": "^4.14.149",
+        "@types/qs": "^6.9.0",
+        "axios": "^0.19.0",
+        "axios-cookiejar-support": "^0.5.1",
+        "cheerio": "^1.0.0-rc.3",
+        "density-clustering": "^1.3.0",
+        "dotenv": "^8.2.0",
+        "es6-error": "^4.1.1",
+        "iconv-lite": "^0.5.0",
+        "lodash": "^4.17.15",
+        "qs": "^6.9.1",
+        "tough-cookie": "^3.0.1"
+    }
+}
