@@ -17,7 +17,6 @@ const containsXvid: Ranker = (topic, searchResult) => {
 };
 
 const size1400or700: Ranker = (topic, { size }) => {
-    debugger;
     if (size >= bytesParse('1.4gb') && size <= bytesParse('1.5gb')) {
         return 1;
     }
@@ -42,7 +41,6 @@ export const rankResults = (
 ): Array<RankedSearchResult> =>
     items.map(item => {
         const topic = topicsById.get(item.topicId);
-        console.log(!!topic);
         const rank = topic
             ? rankers.reduce(
                   (rank, ranker) => ((rank += ranker(topic, item)), rank),

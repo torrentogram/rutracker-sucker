@@ -5,6 +5,7 @@ import qs from 'qs';
 import { CookieJar } from 'tough-cookie';
 import cheerio from 'cheerio';
 import ExtendableError from 'es6-error';
+import { fromString as htmlFromString } from 'html-to-text';
 
 export interface SearchResult {
     title: string;
@@ -155,15 +156,11 @@ export class RutrackerSucker {
             responseType: 'arraybuffer'
         });
         const responseUtf = iconv.decode(responseRaw.data, 'cp1251');
-        const $ = cheerio.load(responseUtf, {
-            normalizeWhitespace: true,
-            decodeEntities: true,
-            xmlMode: true
-        });
+        const $ = cheerio.load(responseUtf);
         const body = $($('.post_body').get(0));
         return {
             body,
-            bodyText: body.text()
+            bodyText: htmlFromString(body.html() || '')
         };
     }
 
