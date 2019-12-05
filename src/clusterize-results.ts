@@ -2,31 +2,37 @@ import _ from 'lodash';
 const clustering = require('density-clustering');
 
 import { SearchResult } from './sucker';
+import { string } from 'prop-types';
 
-const average = (items: Array<SearchResult>): number => {
+type Dict = { [key: string]: any };
+
+const average = (field: string) => (items: Array<SearchResult>): number => {
     if (!items.length) {
         return 0;
     }
     return (
         items.reduce((sum, item) => {
-            sum += item.seeds;
+            sum += (<Dict>item)[field];
             return sum;
         }, 0) / items.length
     );
 };
 
-export const clusterizeResults = (items: Array<SearchResult>) => {
-    const seedsDataset = items.map(item => [item.seeds]);
+export const clusterizeResults = (
+    items: Array<SearchResult>,
+    field: string
+) => {
+    const fieldDataset = items.map(item => [(<Dict>item)[field]]);
     const kmeans = new clustering.KMEANS();
-    const clusters = kmeans.run(seedsDataset, 2);
+    const clusters = kmeans.run(fieldDataset, 2);
     const orderedClusters = _(clusters)
         .map(
             indexCluster => <Array<SearchResult>>(<unknown>_(indexCluster)
                     .map((i: number) => items[i])
-                    .orderBy(['seeds'], ['desc'])
+                    .orderBy([field], ['desc'])
                     .value())
         )
-        .orderBy([average], ['desc'])
+        .orderBy([average(field)], ['desc'])
         .value();
     return orderedClusters;
 };

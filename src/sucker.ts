@@ -9,9 +9,15 @@ import ExtendableError from 'es6-error';
 export interface SearchResult {
     title: string;
     topicId: number;
+    topicUrl: string | null;
     forumName: string;
     seeds: number;
     size: number;
+}
+
+export interface Topic {
+    body: Cheerio;
+    bodyText: string;
 }
 
 export class AuthenticationError extends ExtendableError {
@@ -101,6 +107,13 @@ export class RutrackerSucker {
                         .children('td.t-title')
                         .text()
                         .trim(),
+                    topicUrl:
+                        this.baseURL +
+                        '/forum/' +
+                        ($tr
+                            .children('td.t-title')
+                            .find('a[data-topic_id]')
+                            .attr('href') || null),
                     topicId: parseInt(
                         (
                             $tr
@@ -134,5 +147,33 @@ export class RutrackerSucker {
                 return item;
             });
         return items;
+    }
+
+    async getTopic(topicId: number): Promise<Topic> {
+        const url = `${this.baseURL}/forum/viewtopic.php?t=${topicId}`;
+        const responseRaw = await this.http.get(url, {
+            responseType: 'arraybuffer'
+        });
+        const responseUtf = iconv.decode(responseRaw.data, 'cp1251');
+        const $ = cheerio.load(responseUtf, {
+            normalizeWhitespace: true,
+            decodeEntities: true,
+            xmlMode: true
+        });
+        const body = $($('.post_body').get(0));
+        return {
+            body,
+            bodyText: body.text()
+        };
+    }
+
+    async getTopics(topicIds: Array<number>): Promise<Map<number, Topic>> {
+        const topics = await Promise.all(
+            topicIds.map(topicId => this.getTopic(topicId))
+        );
+        return topicIds.reduce(
+            (m, topicId, index) => (m.set(topicId, topics[index]), m),
+            new Map()
+        );
     }
 }
