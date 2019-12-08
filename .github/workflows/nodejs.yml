@@ -33,3 +33,5 @@ jobs:
         run: echo "Hello"
       - name: Publish to npm
         uses: pascalgn/npm-publish-action@1.1.0
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
