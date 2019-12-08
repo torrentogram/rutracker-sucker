@@ -2,7 +2,6 @@ import _ from 'lodash';
 const clustering = require('density-clustering');
 
 import { SearchResult } from './sucker';
-import { string } from 'prop-types';
 
 type Dict = { [key: string]: any };
 
