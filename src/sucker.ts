@@ -1,3 +1,4 @@
+import { parse as parseContentDisposition } from 'content-disposition';
 import axios, { AxiosInstance } from 'axios';
 import axiosCookieJarSupport from 'axios-cookiejar-support';
 import iconv from 'iconv-lite';
@@ -19,6 +20,11 @@ export interface SearchResult {
 export interface Topic {
     body: Cheerio;
     bodyText: string;
+}
+
+export interface Torrent {
+    data: Buffer;
+    filename: string;
 }
 
 export class AuthenticationError extends ExtendableError {
@@ -44,8 +50,8 @@ export class RutrackerSucker {
                 Referer: this.baseURL,
                 Origin: this.baseURL,
                 'User-Agent':
-                    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/78.0.3904.97 Chrome/78.0.3904.97 Safari/537.36'
-            }
+                    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/78.0.3904.97 Chrome/78.0.3904.97 Safari/537.36',
+            },
         });
         axiosCookieJarSupport(this.http);
     }
@@ -60,7 +66,7 @@ export class RutrackerSucker {
         const responseRaw = await this.http.get('/forum/index.php', {
             jar: this.cookieJar,
             withCredentials: true,
-            responseType: 'arraybuffer'
+            responseType: 'arraybuffer',
         });
         const responseUtf = iconv.decode(responseRaw.data, 'cp1251');
         return !!this.parseLoggedInUser(responseUtf);
@@ -73,12 +79,12 @@ export class RutrackerSucker {
                 redirect: 'index.php',
                 login_username: this.login,
                 login_password: this.password,
-                login: 'Login'
+                login: 'Login',
             }),
             {
                 jar: this.cookieJar,
                 withCredentials: true,
-                responseType: 'arraybuffer'
+                responseType: 'arraybuffer',
             }
         );
         const responseUtf = iconv.decode(responseRaw.data, 'cp1251');
@@ -93,7 +99,7 @@ export class RutrackerSucker {
             {
                 jar: this.cookieJar,
                 withCredentials: true,
-                responseType: 'arraybuffer'
+                responseType: 'arraybuffer',
             }
         );
         const responseUtf = iconv.decode(responseRaw.data, 'cp1251');
@@ -143,7 +149,7 @@ export class RutrackerSucker {
                                 .text()
                                 .trim(),
                             10
-                        ) || 0
+                        ) || 0,
                 };
                 return item;
             });
@@ -153,14 +159,14 @@ export class RutrackerSucker {
     async getTopic(topicId: number): Promise<Topic> {
         const url = `${this.baseURL}/forum/viewtopic.php?t=${topicId}`;
         const responseRaw = await this.http.get(url, {
-            responseType: 'arraybuffer'
+            responseType: 'arraybuffer',
         });
         const responseUtf = iconv.decode(responseRaw.data, 'cp1251');
         const $ = cheerio.load(responseUtf);
         const body = $($('.post_body').get(0));
         return {
             body,
-            bodyText: htmlFromString(body.html() || '')
+            bodyText: htmlFromString(body.html() || ''),
         };
     }
 
@@ -172,5 +178,27 @@ export class RutrackerSucker {
             (m, topicId, index) => (m.set(topicId, topics[index]), m),
             new Map()
         );
+    }
+
+    async getTorrentFile(topicId: number): Promise<Torrent> {
+        const url = `${this.baseURL}/forum/dl.php?${qs.stringify({
+            t: topicId,
+        })}`;
+
+        const responseRaw = await this.http.get(url, {
+            jar: this.cookieJar,
+            withCredentials: true,
+            responseType: 'arraybuffer',
+        });
+
+        const {
+            data,
+            headers: { 'content-disposition': condis },
+        } = responseRaw;
+        const {
+            parameters: { filename = 'untitled.torrent' },
+        } = parseContentDisposition(condis);
+
+        return { data, filename };
     }
 }

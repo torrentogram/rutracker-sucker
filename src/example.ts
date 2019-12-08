@@ -13,7 +13,7 @@ async function main() {
     await sucker.authenticate();
 
     console.log('---- Searching');
-    const items = await sucker.search('побег из шоушенка');
+    const items = await sucker.search('горькая луна');
     const clusters = clusterizeResults(items, 'seeds');
     console.log(
         'Cluster sizes:',
@@ -27,6 +27,16 @@ async function main() {
     );
     const rankedResults = rankResults(popularCluster, topics);
     console.log(rankedResults);
+
+    const bestResult = rankedResults[0];
+
+    console.log('---- Loading torrent');
+    const torrent = await sucker.getTorrentFile(bestResult.topicId);
+    console.log('Torrent file name:', torrent.filename);
+    console.log(
+        'First 100 bytes of the torrent:',
+        torrent.data.slice(0, 100).toString('ascii')
+    );
 }
 
 main().catch(e => {
