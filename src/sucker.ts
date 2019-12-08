@@ -7,6 +7,7 @@ import { CookieJar } from 'tough-cookie';
 import cheerio from 'cheerio';
 import ExtendableError from 'es6-error';
 import { fromString as htmlFromString } from 'html-to-text';
+import { cached } from './cache';
 
 export interface SearchResult {
     title: string;
@@ -156,6 +157,7 @@ export class RutrackerSucker {
         return items;
     }
 
+    @cached()
     async getTopic(topicId: number): Promise<Topic> {
         const url = `${this.baseURL}/forum/viewtopic.php?t=${topicId}`;
         const responseRaw = await this.http.get(url, {
