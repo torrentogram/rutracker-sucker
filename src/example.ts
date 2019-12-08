@@ -9,8 +9,8 @@ async function main() {
         process.env.LOGIN || '',
         process.env.PASSWORD || ''
     );
-    console.log('---- Authenticating');
-    await sucker.authenticate();
+    // console.log('---- Authenticating');
+    // await sucker.authenticate();
 
     console.log('---- Searching');
     const items = await sucker.search('горькая луна');

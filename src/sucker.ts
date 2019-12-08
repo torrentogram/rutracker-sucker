@@ -8,6 +8,8 @@ import cheerio from 'cheerio';
 import ExtendableError from 'es6-error';
 import { fromString as htmlFromString } from 'html-to-text';
 import { cached } from './cache';
+import { authenticated } from './authenticated';
+import { Authenticatable } from './Authenticatable';
 
 export interface SearchResult {
     title: string;
@@ -32,10 +34,11 @@ export class AuthenticationError extends ExtendableError {
     message = 'Authentication Error';
 }
 
-export class RutrackerSucker {
+export class RutrackerSucker implements Authenticatable {
     private baseURL: string = 'https://rutracker.org';
     private http: AxiosInstance;
     private cookieJar: CookieJar;
+    public lastAuthenticationTime: number = 0;
 
     constructor(
         private readonly login: string,
@@ -94,6 +97,7 @@ export class RutrackerSucker {
         }
     }
 
+    @authenticated({ ttl: 20 * 60 * 1000 })
     @cached({ ttl: 60 * 60 * 1000 })
     async search(q: string): Promise<Array<SearchResult>> {
         const responseRaw = await this.http.get(
@@ -159,13 +163,17 @@ export class RutrackerSucker {
     }
 
     @cached({ ttl: 60 * 60 * 1000 })
-    async getTopic(topicId: number): Promise<Topic> {
+    private async getTopicHtml(topicId: number): Promise<string> {
         const url = `${this.baseURL}/forum/viewtopic.php?t=${topicId}`;
         const responseRaw = await this.http.get(url, {
             responseType: 'arraybuffer',
         });
-        const responseUtf = iconv.decode(responseRaw.data, 'cp1251');
-        const $ = cheerio.load(responseUtf);
+        return iconv.decode(responseRaw.data, 'cp1251');
+    }
+
+    @authenticated({ ttl: 20 * 60 * 1000 })
+    async getTopic(topicId: number): Promise<Topic> {
+        const $ = cheerio.load(await this.getTopicHtml(topicId));
         const body = $($('.post_body').get(0));
         return {
             body,
@@ -173,6 +181,7 @@ export class RutrackerSucker {
         };
     }
 
+    @authenticated({ ttl: 20 * 60 * 1000 })
     async getTopics(topicIds: Array<number>): Promise<Map<number, Topic>> {
         const topics = await Promise.all(
             topicIds.map(topicId => this.getTopic(topicId))
@@ -183,6 +192,7 @@ export class RutrackerSucker {
         );
     }
 
+    @authenticated({ ttl: 20 * 60 * 1000 })
     @cached({ ttl: 60 * 60 * 1000 })
     async getTorrentFile(topicId: number): Promise<Torrent> {
         const url = `${this.baseURL}/forum/dl.php?${qs.stringify({
