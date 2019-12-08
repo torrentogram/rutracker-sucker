@@ -31,3 +31,5 @@ jobs:
     steps:
       - name: Just a test
         run: echo "Hello"
+      - name: Publish to npm
+        uses: pascalgn/npm-publish-action@1.1.0
