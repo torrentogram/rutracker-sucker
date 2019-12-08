@@ -2,7 +2,11 @@
     "name": "rutracker-sucker",
     "version": "1.0.3",
     "description": "",
-    "main": "index.js",
+    "files": [
+        "lib"
+    ],
+    "main": "lib/main.js",
+    "types": "lib/main.d.ts",
     "scripts": {
         "test": "jest",
         "type-check": "tsc --noEmit",

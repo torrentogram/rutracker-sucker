@@ -1,5 +1,5 @@
 import { SearchResult } from './sucker';
-import { clusterizeResults } from './clusterize-results';
+import { clusterizeResults } from './clusterizeResults';
 
 describe('clusterizeResults', () => {
     it('should clusterize', () => {

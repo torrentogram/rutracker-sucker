@@ -1,5 +1,5 @@
 import { RutrackerSucker } from './sucker';
-import { clusterizeResults } from './clusterize-results';
+import { clusterizeResults } from './clusterizeResults';
 import { config as dotenvConfig } from 'dotenv';
 import { rankResults } from './rankResults';
 
