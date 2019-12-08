@@ -24,3 +24,10 @@ jobs:
         npm test
       env:
         CI: true
+  pub:
+    needs: [build]
+    runs-on: [ubuntu-latest]
+    name: Publish to NPM
+    steps:
+      - name: Just a test
+        run: echo "Hello"
