@@ -94,6 +94,7 @@ export class RutrackerSucker {
         }
     }
 
+    @cached({ ttl: 60 * 60 * 1000 })
     async search(q: string): Promise<Array<SearchResult>> {
         const responseRaw = await this.http.get(
             `/forum/tracker.php?${qs.stringify({ nm: q })}`,
@@ -157,7 +158,7 @@ export class RutrackerSucker {
         return items;
     }
 
-    @cached()
+    @cached({ ttl: 60 * 60 * 1000 })
     async getTopic(topicId: number): Promise<Topic> {
         const url = `${this.baseURL}/forum/viewtopic.php?t=${topicId}`;
         const responseRaw = await this.http.get(url, {
@@ -182,6 +183,7 @@ export class RutrackerSucker {
         );
     }
 
+    @cached({ ttl: 60 * 60 * 1000 })
     async getTorrentFile(topicId: number): Promise<Torrent> {
         const url = `${this.baseURL}/forum/dl.php?${qs.stringify({
             t: topicId,
