@@ -1,5 +1,6 @@
 import { Topic, SearchResult } from './sucker';
 import { parse as bytesParse } from 'bytes';
+import _ from 'lodash';
 
 interface Ranker {
     (topic: Topic, searchResult: SearchResult): number;
@@ -39,13 +40,16 @@ export const rankResults = (
     items: Array<SearchResult>,
     topicsById: Map<number, Topic>
 ): Array<RankedSearchResult> =>
-    items.map(item => {
-        const topic = topicsById.get(item.topicId);
-        const rank = topic
-            ? rankers.reduce(
-                  (rank, ranker) => ((rank += ranker(topic, item)), rank),
-                  0
-              )
-            : 0;
-        return { ...item, rank };
-    });
+    _(items)
+        .map(item => {
+            const topic = topicsById.get(item.topicId);
+            const rank = topic
+                ? rankers.reduce(
+                      (rank, ranker) => ((rank += ranker(topic, item)), rank),
+                      0
+                  )
+                : 0;
+            return { ...item, rank };
+        })
+        .orderBy(['rank'], ['desc'])
+        .value();
