@@ -23,7 +23,7 @@ export const clusterizeResults = (
 ) => {
     const fieldDataset = items.map(item => [(<Dict>item)[field]]);
     const kmeans = new clustering.KMEANS();
-    const clusters = kmeans.run(fieldDataset, 2);
+    const clusters = kmeans.run(fieldDataset, Math.min(2, items.length));
     const orderedClusters = _(clusters)
         .map(
             indexCluster => <Array<SearchResult>>(<unknown>_(indexCluster)
