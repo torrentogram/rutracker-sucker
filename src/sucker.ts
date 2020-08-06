@@ -117,27 +117,27 @@ export class RutrackerSucker implements Authenticatable {
                 const $tr = $(tr);
                 const item: SearchResult = {
                     title: $tr
-                        .children('td.t-title')
+                        .children('td.t-title-col')
                         .text()
                         .trim(),
                     topicUrl:
                         this.baseURL +
                         '/forum/' +
                         ($tr
-                            .children('td.t-title')
+                            .children('td.t-title-col')
                             .find('a[data-topic_id]')
                             .attr('href') || null),
                     topicId: parseInt(
                         (
                             $tr
-                                .children('td.t-title')
+                                .children('td.t-title-col')
                                 .find('a[data-topic_id]')
                                 .attr('data-topic_id') || ''
                         ).trim(),
                         10
                     ),
                     forumName: $tr
-                        .children('td.f-name')
+                        .children('td.f-name-col')
                         .text()
                         .trim(),
                     size: parseInt(
