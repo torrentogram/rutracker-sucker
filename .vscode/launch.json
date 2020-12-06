@@ -15,6 +15,15 @@
         },
         {
             "type": "node",
+            "request": "launch",
+            "name": "Example UID",
+            "program": "${workspaceFolder}/lib/exampleUID.js",
+            "skipFiles": ["<node_internals>/**"],
+            "preLaunchTask": "TypescriptBuild",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
             "name": "vscode-jest-tests",
             "request": "launch",
             "args": ["--runInBand"],

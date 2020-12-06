@@ -1,15 +1,16 @@
-import { parse as parseContentDisposition } from 'content-disposition';
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import axiosCookieJarSupport from 'axios-cookiejar-support';
-import iconv from 'iconv-lite';
-import qs from 'qs';
-import { CookieJar } from 'tough-cookie';
 import cheerio from 'cheerio';
+import { parse as parseContentDisposition } from 'content-disposition';
 import ExtendableError from 'es6-error';
 import { fromString as htmlFromString } from 'html-to-text';
-import { cached } from './cache';
-import { authenticated } from './authenticated';
+import iconv from 'iconv-lite';
+import { dirname, resolve } from 'path';
+import qs from 'qs';
+import { CookieJar } from 'tough-cookie';
 import { Authenticatable } from './Authenticatable';
+import { authenticated } from './authenticated';
+import { cached } from './cache';
 
 export interface SearchResult {
     title: string;
@@ -67,108 +68,124 @@ export class RutrackerSucker implements Authenticatable {
     }
 
     async isAuthenticated(): Promise<boolean> {
-        const responseRaw = await this.http.get('/forum/index.php', {
-            jar: this.cookieJar,
-            withCredentials: true,
-            responseType: 'arraybuffer',
-        });
-        const responseUtf = iconv.decode(responseRaw.data, 'cp1251');
-        return !!this.parseLoggedInUser(responseUtf);
-    }
-
-    async authenticate(): Promise<void> {
-        const responseRaw = await this.http.post(
-            '/forum/login.php',
-            qs.stringify({
-                redirect: 'index.php',
-                login_username: this.login,
-                login_password: this.password,
-                login: 'Login',
-            }),
-            {
+        const body = this.toUTF8(
+            await this.http.get('/forum/index.php', {
                 jar: this.cookieJar,
                 withCredentials: true,
                 responseType: 'arraybuffer',
-            }
+            })
         );
-        const responseUtf = iconv.decode(responseRaw.data, 'cp1251');
-        if (!this.parseLoggedInUser(responseUtf)) {
+        return !!this.parseLoggedInUser(body);
+    }
+
+    async authenticate(): Promise<void> {
+        const body = this.toUTF8(
+            await this.http.post(
+                '/forum/login.php',
+                qs.stringify({
+                    redirect: 'index.php',
+                    login_username: this.login,
+                    login_password: this.password,
+                    login: 'Login',
+                }),
+                {
+                    jar: this.cookieJar,
+                    withCredentials: true,
+                    responseType: 'arraybuffer',
+                }
+            )
+        );
+        if (!this.parseLoggedInUser(body)) {
             throw new AuthenticationError();
         }
     }
 
     @authenticated({ ttl: 20 * 60 * 1000 })
     @cached({ ttl: 60 * 60 * 1000 })
-    async search(q: string): Promise<Array<SearchResult>> {
-        const responseRaw = await this.http.get(
-            `/forum/tracker.php?${qs.stringify({ nm: q })}`,
-            {
-                jar: this.cookieJar,
-                withCredentials: true,
-                responseType: 'arraybuffer',
-            }
+    async search(q: string): Promise<SearchResult[]> {
+        const body = this.toUTF8(
+            await this.http.get(
+                `/forum/tracker.php?${qs.stringify({ nm: q })}`,
+                {
+                    jar: this.cookieJar,
+                    withCredentials: true,
+                    responseType: 'arraybuffer',
+                }
+            )
         );
-        const responseUtf = iconv.decode(responseRaw.data, 'cp1251');
 
-        const $ = cheerio.load(responseUtf);
+        const $ = cheerio.load(body);
         const items = $('tr.hl-tr')
             .toArray()
             .map(tr => {
-                const $tr = $(tr);
-                const item: SearchResult = {
-                    title: $tr
-                        .children('td.t-title-col')
-                        .text()
-                        .trim(),
-                    topicUrl:
-                        this.baseURL +
-                        '/forum/' +
-                        ($tr
-                            .children('td.t-title-col')
-                            .find('a[data-topic_id]')
-                            .attr('href') || null),
-                    topicId: parseInt(
-                        (
-                            $tr
-                                .children('td.t-title-col')
-                                .find('a[data-topic_id]')
-                                .attr('data-topic_id') || ''
-                        ).trim(),
-                        10
-                    ),
-                    forumName: $tr
-                        .children('td.f-name-col')
-                        .text()
-                        .trim(),
-                    size: parseInt(
-                        (
-                            $tr
-                                .children('td[data-ts_text]')
-                                .attr('data-ts_text') || ''
-                        ).trim(),
-                        10
-                    ),
-                    seeds:
-                        parseInt(
-                            $tr
-                                .find('td.nowrap b.seedmed')
-                                .text()
-                                .trim(),
-                            10
-                        ) || 0,
-                };
+                const item = this.parseTableRowToSearchResult($(tr));
                 return item;
             });
+        return items;
+    }
+
+    @authenticated({ ttl: 20 * 60 * 1000 })
+    @cached({ ttl: 60 * 60 * 1000 })
+    async searchByUserId(uid: number): Promise<SearchResult[]> {
+        const parseResults = (
+            baseURL: string,
+            body: string
+        ): { items: SearchResult[]; nextURL: string | null } => {
+            const $ = cheerio.load(body);
+            const items = $('tr.hl-tr')
+                .toArray()
+                .map(tr => {
+                    const item = this.parseTableRowToSearchResult($(tr));
+                    return item;
+                });
+
+            const pagerLinks = $('a.pg');
+            const link = Array.from(pagerLinks).find(
+                el =>
+                    $(el)
+                        .text()
+                        .trim() === 'След.'
+            );
+            const nextURL = link
+                ? resolve(dirname(baseURL), $(link).attr('href'))
+                : null;
+
+            return { items, nextURL };
+        };
+
+        const get = async (url: string): Promise<string> =>
+            this.toUTF8(
+                await this.http.get(url, {
+                    jar: this.cookieJar,
+                    withCredentials: true,
+                    responseType: 'arraybuffer',
+                })
+            );
+
+        //--------
+
+        let url: string | null = `/forum/tracker.php?${qs.stringify({
+            pid: uid,
+        })}`;
+        let items: SearchResult[] = [];
+        while (url) {
+            const body = await get(url);
+            const results = parseResults(url, body);
+            url = results.nextURL;
+            items = items.concat(results.items);
+        }
+
         return items;
     }
 
     @cached({ ttl: 60 * 60 * 1000 })
     private async getTopicHtml(topicId: number): Promise<string> {
         const url = `${this.baseURL}/forum/viewtopic.php?t=${topicId}`;
-        const responseRaw = await this.http.get(url, {
-            responseType: 'arraybuffer',
-        });
-        return iconv.decode(responseRaw.data, 'cp1251');
+        return this.toUTF8(
+            await this.http.get(url, {
+                responseType: 'arraybuffer',
+            })
+        );
     }
 
     @authenticated({ ttl: 20 * 60 * 1000 })
@@ -182,7 +199,7 @@ export class RutrackerSucker implements Authenticatable {
     }
 
     @authenticated({ ttl: 20 * 60 * 1000 })
-    async getTopics(topicIds: Array<number>): Promise<Map<number, Topic>> {
+    async getTopics(topicIds: number[]): Promise<Map<number, Topic>> {
         const topics = await Promise.all(
             topicIds.map(topicId => this.getTopic(topicId))
         );
@@ -214,5 +231,51 @@ export class RutrackerSucker implements Authenticatable {
         } = parseContentDisposition(condis);
 
         return { data, filename };
+    }
+    private toUTF8(resp: AxiosResponse) {
+        return iconv.decode(resp.data, 'cp1251');
+    }
+    private parseTableRowToSearchResult($tr: Cheerio): SearchResult {
+        const item: SearchResult = {
+            title: $tr
+                .children('td.t-title-col')
+                .text()
+                .trim(),
+            topicUrl:
+                this.baseURL +
+                '/forum/' +
+                ($tr
+                    .children('td.t-title-col')
+                    .find('a[data-topic_id]')
+                    .attr('href') || null),
+            topicId: parseInt(
+                (
+                    $tr
+                        .children('td.t-title-col')
+                        .find('a[data-topic_id]')
+                        .attr('data-topic_id') || ''
+                ).trim(),
+                10
+            ),
+            forumName: $tr
+                .children('td.f-name-col')
+                .text()
+                .trim(),
+            size: parseInt(
+                (
+                    $tr.children('td[data-ts_text]').attr('data-ts_text') || ''
+                ).trim(),
+                10
+            ),
+            seeds:
+                parseInt(
+                    $tr
+                        .find('td.nowrap b.seedmed')
+                        .text()
+                        .trim(),
+                    10
+                ) || 0,
+        };
+        return item;
     }
 }
